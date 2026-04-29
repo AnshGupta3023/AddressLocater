@@ -43,6 +43,7 @@ export function AddressForm({
   const [isLoading, setIsLoading] = useState(false)
   const [showOTPDialog, setShowOTPDialog] = useState(false)
   const [pendingFormData, setPendingFormData] = useState<AddressFormData | null>(null)
+  const [postalCodeError, setPostalCodeError] = useState("")
   const [formData, setFormData] = useState<AddressFormData>({
     label: "",
     type: "home",
@@ -101,6 +102,27 @@ export function AddressForm({
     }
   }, [editingAddress, open])
 
+  // Validate postal code - must be exactly 6 digits
+  const validatePostalCode = (value: string): boolean => {
+    const postalCodeRegex = /^\d{6}$/
+    return postalCodeRegex.test(value)
+  }
+
+  const handlePostalCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 6) // Only allow digits, max 6
+    setFormData((prev) => ({ ...prev, postalCode: value }))
+    
+    if (value.length === 0) {
+      setPostalCodeError("")
+    } else if (value.length < 6) {
+      setPostalCodeError("Postal code must be 6 digits")
+    } else if (!validatePostalCode(value)) {
+      setPostalCodeError("Invalid postal code format")
+    } else {
+      setPostalCodeError("")
+    }
+  }
+
   const handleAddressSelect = (address: AddressComponents) => {
     setFormData((prev) => ({
       ...prev,
@@ -154,11 +176,14 @@ export function AddressForm({
     await new Promise((resolve) => setTimeout(resolve, 1000))
   }
 
+  const isPostalCodeValid = validatePostalCode(formData.postalCode)
+  
   const isValid =
     formData.streetAddress && 
     formData.city && 
     formData.state && 
     formData.postalCode && 
+    isPostalCodeValid &&
     formData.recipientName && 
     formData.phone
 
@@ -283,17 +308,21 @@ export function AddressForm({
           {/* Postal Code and Country Row */}
           <div className="grid grid-cols-2 gap-4">
             <Field>
-              <FieldLabel>Postal / ZIP Code *</FieldLabel>
+              <FieldLabel>Postal Code *</FieldLabel>
               <Input
                 value={formData.postalCode}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    postalCode: e.target.value,
-                  }))
-                }
-                placeholder="Postal or ZIP Code"
+                onChange={handlePostalCodeChange}
+                placeholder="6-digit postal code"
+                maxLength={6}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                className={cn(
+                  postalCodeError && "border-destructive focus-visible:ring-destructive"
+                )}
               />
+              {postalCodeError && (
+                <p className="text-xs text-destructive mt-1">{postalCodeError}</p>
+              )}
             </Field>
             <Field>
               <FieldLabel>Country</FieldLabel>
